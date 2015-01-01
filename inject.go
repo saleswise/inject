@@ -209,6 +209,24 @@ func (g *Graph) Populate() error {
 	return nil
 }
 
+func (g *Graph) Fill(v interface{}) error {
+	o := &Object{
+		Value: v,
+		reflectType: reflect.TypeOf(v),
+		reflectValue: reflect.ValueOf(v),
+	}
+
+	if err := g.populateExplicit(o); err != nil {
+		return err
+	}
+
+	if err := g.populateUnnamedInterface(o); err != nil {
+		return err
+	}
+
+	return g.Populate()
+}
+
 func (g *Graph) populateExplicit(o *Object) error {
 	// Ignore named value types.
 	if o.Name != "" && !isStructPtr(o.reflectType) {
