@@ -58,6 +58,7 @@ type Object struct {
 	Name         string             // Optional
 	Complete     bool               // If true, the Value will be considered complete
 	Fields       map[string]*Object // Populated with the field names that were injected and their corresponding *Object.
+	Mock         bool               // If true, the Value is considered a mock and wins competitions of trying to fulfill an interface with non-mocks
 	reflectType  reflect.Type
 	reflectValue reflect.Value
 	private      bool // If true, the Value will not be used and will only be populated
@@ -211,8 +212,8 @@ func (g *Graph) Populate() error {
 
 func (g *Graph) Fill(v interface{}) error {
 	o := &Object{
-		Value: v,
-		reflectType: reflect.TypeOf(v),
+		Value:        v,
+		reflectType:  reflect.TypeOf(v),
 		reflectValue: reflect.ValueOf(v),
 	}
 
@@ -471,16 +472,23 @@ func (g *Graph) populateUnnamedInterface(o *Object) error {
 			}
 			if existing.reflectType.AssignableTo(fieldType) {
 				if found != nil {
-					return fmt.Errorf(
-						"found two assignable values for field %s in type %s. one type "+
-							"%s with value %v and another type %s with value %v",
-						o.reflectType.Elem().Field(i).Name,
-						o.reflectType,
-						found.reflectType,
-						found.Value,
-						existing.reflectType,
-						existing.reflectValue,
-					)
+					if found.Mock == existing.Mock {
+						// Error if neither are mocks or both are mocks
+						return fmt.Errorf(
+							"found two assignable values for field %s in type %s. one type " +
+								"%s with value %v and another type %s with value %v. mock is %v.",
+							o.reflectType.Elem().Field(i).Name,
+							o.reflectType,
+							found.reflectType,
+							found.Value,
+							existing.reflectType,
+							existing.reflectValue,
+							existing.Mock,
+						)
+					} else if found.Mock {
+						// The found is the mock, so ignore this existing one
+						continue
+					}
 				}
 				found = existing
 				field.Set(reflect.ValueOf(existing.Value))
