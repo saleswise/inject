@@ -135,7 +135,13 @@ func (g *Graph) Provide(objects ...*Object) error {
 			}
 
 			if g.named[o.Name] != nil {
-				return fmt.Errorf("provided two instances named %s", o.Name)
+				if g.named[o.Name].Mock == o.Mock {
+					return fmt.Errorf("provided two instances named %s", o.Name)
+				}
+
+				if !o.Mock {
+					continue
+				}
 			}
 			g.named[o.Name] = o
 		}
