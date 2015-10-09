@@ -121,10 +121,21 @@ func (g *Graph) Provide(objects ...*Object) error {
 				}
 
 				if g.unnamedType[o.reflectType] {
-					return fmt.Errorf(
-						"provided two unnamed instances of type *%s.%s",
-						o.reflectType.Elem().PkgPath(), o.reflectType.Elem().Name(),
-					)
+					index := g.getUnnamedOfTypeIndex(o.reflectType)
+					existing := g.unnamed[index]
+					if existing.Mock == o.Mock {
+						return fmt.Errorf(
+							"provided two unnamed instances of type *%s.%s",
+							o.reflectType.Elem().PkgPath(), o.reflectType.Elem().Name(),
+						)
+					}
+
+					if !o.Mock {
+						continue
+					}
+
+					// Remove existing
+					g.unnamed = append(g.unnamed[:index], g.unnamed[index+1:]...)
 				}
 				g.unnamedType[o.reflectType] = true
 			}
@@ -157,6 +168,16 @@ func (g *Graph) Provide(objects ...*Object) error {
 		}
 	}
 	return nil
+}
+
+func (g *Graph) getUnnamedOfTypeIndex(t reflect.Type) int {
+	for i, o := range g.unnamed {
+		if o.reflectType == t {
+			return i
+		}
+	}
+
+	return -1
 }
 
 // Populate the incomplete Objects.
